@@ -52,6 +52,9 @@
             var canvas = document.getElementById("canvas");
             var ctx = canvas.getContext("webgl");
             
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
             ctx.enable(ctx.DEPTH_TEST);
             ctx.enable(ctx.CULL_FACE);
             ctx.frontFace(ctx.CCW);
