@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Learning WebGL</title>
+        
+        <style>
+            #canvas {
+            position: absolute;
+            left : 0px;
+            top : 0px;
+        }
+    </style>
+    </head>
+    <body>
+        <!-- Create A Canvas -->
+        <canvas id="canvas" width="600" height="400"></canvas>
+        
+        <!-- Import A Lbrary To Handle Matrix Math -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"></script>
+        
+        <!-- Create A Seperate Script To Store Shaders -->
+        <script>
+            var vertShaderText = [
+                "precision mediump float;",
+                "",
+                "attribute vec3 vertPosition;",
+                "attribute vec3 vertColor;",
+                "varying vec3 fragColor;",
+                "uniform mat4 mWorld;",
+                "uniform mat4 mView;",
+                "uniform mat4 mProj;",
+                "",
+                "void main() {",
+                "  fragColor = vertColor;",
+                "  gl_Position = mProj * mView * mWorld * vec4(vertPosition, 1.0);",
+                "}",
+            ].join("\n");
+            var fragShaderText = [
+                "precision mediump float;",
+                "",
+                "varying vec3 fragColor;",
+                "void main() {",
+                " gl_FragColor = vec4(fragColor, 1.0);",
+                "}",
+            ].join("\n");
+        </script>
+        
+        <!-- Create The Main Script -->
+        <script>
+            var canvas = document.getElementById("canvas");
+            var ctx = canvas.getContext("webgl");
+            
+            ctx.enable(ctx.DEPTH_TEST);
+            ctx.enable(ctx.CULL_FACE);
+            ctx.frontFace(ctx.CCW);
+            
+            var vertShader = ctx.createShader(ctx.VERTEX_SHADER);
+            var fragShader = ctx.createShader(ctx.FRAGMENT_SHADER);
+            
+            ctx.shaderSource(vertShader, vertShaderText);
+            ctx.shaderSource(fragShader, fragShaderText);
+            
+            ctx.compileShader(vertShader);
+            ctx.compileShader(fragShader);
+            
+            var program = ctx.createProgram();
+            ctx.attachShader(program, vertShader);
+            ctx.attachShader(program, fragShader);
+            ctx.linkProgram(program);
+            ctx.validateProgram(program);
+            
+            var boxVerts = [
+                //X,   Y,   Z        R    G    B
+                // Top
+                -1.0, 1.0, -1.0,   0.5, 0.5, 0.5,
+                -1.0, 1.0, 1.0,    0.5, 0.5, 0.5,
+                1.0, 1.0, 1.0,     0.5, 0.5, 0.5,
+                1.0, 1.0, -1.0,    0.5, 0.5, 0.5,
+                
+                // Left
+                -1.0, 1.0, 1.0,    0.75, 0.25, 0.5,
+                -1.0, -1.0, 1.0,   0.75, 0.25, 0.5,
+                -1.0, -1.0, -1.0,  0.75, 0.25, 0.5,
+                -1.0, 1.0, -1.0,   0.75, 0.25, 0.5,
+                
+                // Right
+                1.0, 1.0, 1.0,    0.25, 0.25, 0.75,
+                1.0, -1.0, 1.0,   0.25, 0.25, 0.75,
+                1.0, -1.0, -1.0,  0.25, 0.25, 0.75,
+                1.0, 1.0, -1.0,   0.25, 0.25, 0.75,
+                
+                // Front
+                1.0, 1.0, 1.0,    1.0, 0.0, 0.15,
+                1.0, -1.0, 1.0,    1.0, 0.0, 0.15,
+                -1.0, -1.0, 1.0,    1.0, 0.0, 0.15,
+                -1.0, 1.0, 1.0,    1.0, 0.0, 0.15,
+                
+        		// Back
+                1.0, 1.0, -1.0,    0.0, 1.0, 0.15,
+                1.0, -1.0, -1.0,    0.0, 1.0, 0.15,
+                -1.0, -1.0, -1.0,    0.0, 1.0, 0.15,
+                -1.0, 1.0, -1.0,    0.0, 1.0, 0.15,
+                
+                // Bottom
+                -1.0, -1.0, -1.0,   0.5, 0.5, 1.0,
+                -1.0, -1.0, 1.0,    0.5, 0.5, 1.0,
+                1.0, -1.0, 1.0,     0.5, 0.5, 1.0,
+                1.0, -1.0, -1.0,    0.5, 0.5, 1.0,
+            ];
+            var boxInds = [
+                // Top
+                0, 1, 2,
+                0, 2, 3,
+                
+                // Left
+                5, 4, 6,
+                6, 4, 7,
+                
+                // Right
+                8, 9, 10,
+                8, 10, 11,
+                
+                // Front
+                13, 12, 14,
+                15, 14, 12,
+                
+                // Back
+                16, 17, 18,
+                16, 18, 19,
+                
+                // Bottom
+                21, 20, 22,
+                22, 20, 23
+            ];
+            
+            var boxVertexBufferObject = ctx.createBuffer();
+            ctx.bindBuffer(ctx.ARRAY_BUFFER, boxVertexBufferObject);
+            ctx.bufferData(ctx.ARRAY_BUFFER, new Float32Array(boxVerts), ctx.STATIC_DRAW);
+            
+            var boxIndexBufferObject = ctx.createBuffer();
+            ctx.bindBuffer(ctx.ELEMENT_ARRAY_BUFFER, boxIndexBufferObject);
+            ctx.bufferData(ctx.ELEMENT_ARRAY_BUFFER, new Uint16Array(boxInds), ctx.STATIC_DRAW);
+            
+            var positionAttributeLocation = ctx.getAttribLocation(program, "vertPosition");
+            var colorAttributeLocation = ctx.getAttribLocation(program, "vertColor");
+            ctx.vertexAttribPointer(
+                positionAttributeLocation,
+                3,
+                ctx.FLOAT,
+                ctx.FALSE,
+                6 * Float32Array.BYTES_PER_ELEMENT,
+                0
+            );
+            ctx.vertexAttribPointer(
+                colorAttributeLocation,
+                3,
+                ctx.FLOAT,
+                ctx.FALSE,
+                6 * Float32Array.BYTES_PER_ELEMENT,
+                3 * Float32Array.BYTES_PER_ELEMENT
+            );
+            
+            ctx.enableVertexAttribArray(positionAttributeLocation);
+            ctx.enableVertexAttribArray(colorAttributeLocation);
+  
+            // Decide Which Program Is Active
+            ctx.useProgram(program);
+            
+            var matWorldUniformLocation = ctx.getUniformLocation(program, "mWorld");
+            var matViewUniformLocation = ctx.getUniformLocation(program, "mView");
+            var matProjUniformLocation = ctx.getUniformLocation(program, "mProj");
+            
+            var worldMatrix = new Float32Array(16);
+            var viewMatrix = new Float32Array(16);
+            var projMatrix = new Float32Array(16);
+            mat4.identity(worldMatrix);
+            mat4.lookAt(viewMatrix, [0, 0, -8], [0, 0, 0], [0, 1, 0]);
+            mat4.perspective(projMatrix, Math.PI / 4, canvas.width / canvas.height, 0.1, 1000.0);
+            
+            ctx.uniformMatrix4fv(matWorldUniformLocation, ctx.FALSE, worldMatrix);
+            ctx.uniformMatrix4fv(matViewUniformLocation, ctx.FALSE, viewMatrix);
+            ctx.uniformMatrix4fv(matProjUniformLocation, ctx.FALSE, projMatrix);
+            
+            // Rotation Matrices
+            var xRotationMatrix = new Float32Array(16);
+            var yRotationMatrix = new Float32Array(16);
+            
+            // Main Render Loop
+            var identityMatrix = new Float32Array(16);
+            mat4.identity(identityMatrix);
+            var angle = 0;
+            var main = function() {
+                angle = performance.now() / 3000 * Math.PI;
+                mat4.rotate(yRotationMatrix, identityMatrix, angle, [0, 1, 0]);
+                mat4.rotate(xRotationMatrix, identityMatrix, angle * 0.25, [1, 0, 0]);
+                mat4.mul(worldMatrix, xRotationMatrix, yRotationMatrix);
+                ctx.uniformMatrix4fv(matWorldUniformLocation, ctx.FALSE, worldMatrix);
+                
+                ctx.clearColor(0.75, 0.85, 1.0, 1.0);
+                ctx.clear(ctx.COLOR_BUFFER_BIT|ctx.DEPTH_BUFFER_BIT);
+                ctx.drawElements(ctx.TRIANGLES, boxInds.length, ctx.UNSIGNED_SHORT, 0);
+                
+                requestAnimationFrame(main); 
+            };
+            requestAnimationFrame(main);
+        </script>
+    </body>
+</html>
